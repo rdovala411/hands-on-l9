@@ -1,25 +1,29 @@
-# Ride Sharing Analytics Using Spark Streaming and Spark SQL.
+# ITCS6190 — Spark SQL & Structured Streaming (L8/L9)
+
+This project demonstrates a simple end-to-end streaming pipeline with **PySpark**:
+
+- A Python **data generator** streams JSON ride events over a TCP socket.
+- **Task 1**: Read & parse the stream → print to console **and** write CSVs.
+- **Task 2**: Aggregate by `driver_id` (total fare, average distance) → console + per-epoch CSVs.
+- **Task 3**: Windowed totals with **5-minute window**, **1-minute slide**, **1-minute watermark** → console + CSVs.
+
+> ⚠️ Run **one Spark task at a time** while the generator is running (the socket server is single-client).
+
 ---
-## **Prerequisites**
-Before starting the assignment, ensure you have the following software installed and properly configured on your machine:
-1. **Python 3.x**:
-   - [Download and Install Python](https://www.python.org/downloads/)
-   - Verify installation:
-     ```bash
-     python3 --version
-     ```
 
-2. **PySpark**:
-   - Install using `pip`:
-     ```bash
-     pip install pyspark
-     ```
-
-3. **Faker**:
-   - Install using `pip`:
-     ```bash
-     pip install faker
-     ```
+## Table of Contents
+- [Repo Structure](#repo-structure)
+- [Prerequisites](#prerequisites)
+- [Quick Start (TL;DR)](#quick-start-tldr)
+- [How to Run](#how-to-run)
+  - [Terminal A — Generator](#terminal-a--generator)
+  - [Terminal B — Tasks](#terminal-b--tasks)
+- [Output Locations](#output-locations)
+- [Verify Outputs](#verify-outputs)
+- [Details & Semantics](#details--semantics)
+- [Troubleshooting](#troubleshooting)
+- [Submission Checklist](#submission-checklist)
+- [.gitignore](#gitignore)
 
 ---
 
@@ -45,95 +49,144 @@ ride-sharing-analytics/
 └── README.md
 ```
 
-- **data_generator.py/**: generates a constant stream of input data of the schema (trip_id, driver_id, distance_km, fare_amount, timestamp)  
-- **outputs/**: CSV files of processed data of each task stored in respective folders.
-- **README.md**: Assignment instructions and guidelines.
-  
----
 
-### **2. Running the Analysis Tasks**
-
-You can run the analysis tasks either locally.
-
-1. **Execute Each Task **: The data_generator.py should be continuosly running on a terminal. open a new terminal to execute each of the tasks.
-   ```bash
-     python data_generator.py
-     python task1.py
-     python task2.py
-     python task3.py
-   ```
-
-2. **Verify the Outputs**:
-   Check the `outputs/` directory for the resulting files:
-   ```bash
-   ls outputs/
-   ```
 
 ---
 
-## **Overview**
+## Prerequisites
 
-In this assignment, we will build a real-time analytics pipeline for a ride-sharing platform using Apache Spark Structured Streaming. we will process streaming data, perform real-time aggregations, and analyze trends over time.
+- **Python** 3.9+ (3.11/3.12 OK)
+- **Java JDK** 11+ (GitHub Codespaces already has it)
+- **Pip packages:** `pyspark`, `faker`
 
-## **Objectives**
-
-By the end of this assignment, you should be able to:
-
-1. Task 1: Ingest and parse real-time ride data.
-2. Task 2: Perform real-time aggregations on driver earnings and trip distances.
-3. Task 3: Analyze trends over time using a sliding time window.
+If Java is missing locally, install a JDK (e.g., Adoptium Temurin).
 
 ---
 
-## **Task 1: Basic Streaming Ingestion and Parsing**
+## Quick Start (TL;DR)
 
-1. Ingest streaming data from the provided socket (e.g., localhost:9999) using Spark Structured Streaming.
-2. Parse the incoming JSON messages into a Spark DataFrame with proper columns (trip_id, driver_id, distance_km, fare_amount, timestamp).
+```bash
+# 1) Optional: create & activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate                # Windows: .venv\Scripts\activate
 
-## **Instructions:**
-1. Create a Spark session.
-2. Use spark.readStream.format("socket") to read from localhost:9999.
-3. Parse the JSON payload into columns.
-4. Print the parsed data to the console (using .writeStream.format("console")).
+# 2) Install dependencies
+pip install --upgrade pip
+pip install pyspark faker
 
----
+# 3) Create output folders (if not present)
+mkdir -p outputs/task_1 outputs/task_2 outputs/task_3
 
-## **Task 2: Real-Time Aggregations (Driver-Level)**
+# 4) Run generator (Terminal A)
+python data_generator.py
 
-1. Aggregate the data in real time to answer the following questions:
-  • Total fare amount grouped by driver_id.
-  • Average distance (distance_km) grouped by driver_id.
-2. Output these aggregations to the console in real time.
+# 5) Run tasks (Terminal B — one at a time)
+python task1.py
+# Ctrl+C, then:
+python task2.py
+# Ctrl+C, then:
+python task3.py    # let it run ~7–8 minutes for first finalized windows
+```
 
-## **Instructions:**
-1. Reuse the parsed DataFrame from Task 1.
-2. Group by driver_id and compute:
-3. SUM(fare_amount) as total_fare
-4. AVG(distance_km) as avg_distance
-5. Store the result in csv
+Default socket: `127.0.0.1:9999`.
+If port 9999 is busy, start the generator with PORT=9998 and update tasks to use `port=9998`.
 
----
+## How to Run
 
-## **Task 3: Windowed Time-Based Analytics**
+Open two terminals in the project root.
 
-1. Convert the timestamp column to a proper TimestampType.
-2. Perform a 5-minute windowed aggregation on fare_amount (sliding by 1 minute and watermarking by 1 minute).
+Terminal A — Generator
+```
+python data_generator.py
+# Expected logs:
+# "Streaming data to 127.0.0.1:9999…"
+# "New client connected: ('127.0.0.1', <port>)"
+```
 
-## **Instructions:**
+Keep this terminal running while you test each task.
 
-1. Convert the string-based timestamp column to a TimestampType column (e.g., event_time).
-2. Use Spark’s window function to aggregate over a 5-minute window, sliding by 1 minute, for the sum of fare_amount.
-3. Output the windowed results to csv.
 
----
+Terminal B — Tasks
 
-## 📬 Submission Checklist
+Run one at a time. Stop with Ctrl+C between tasks.
 
-- [ ] Python scripts 
-- [ ] Output files in the `outputs/` directory  
-- [ ] Completed `README.md`  
-- [ ] Commit everything to GitHub Classroom  
-- [ ] Submit your GitHub repo link on canvas
+Task 1 — Parse → Console + CSV (outputs/task_1/)
+```
+python task1.py
+```
+Task 2 — Aggregates → Console (COMPLETE mode) + per-epoch CSV (outputs/task_2/epoch=<n>/)
+```
+python task2.py
+```
+
+Task 3 — 5m/1m/1m → Console + CSV (outputs/task_3/)
+```
+python task3.py
+# Let it run ~7–8 minutes so the first windows finalize and write rows.
+```
+Finally, stop the generator (Ctrl+C in Terminal A).
+
+## Output Locations
+
+Task 1: CSV parts → outputs/task_1/part-*.csv
+
+Task 2: Per-epoch CSV → outputs/task_2/epoch=<id>/*.csv
+
+Task 3: CSV parts → outputs/task_3/part-*.csv
+
+Checkpoint (managed by Spark): outputs/task_3/_chk/
+
+
+## Verify Outputs
+```
+# Task 1
+ls -1 outputs/task_1 | head
+head -n 5 outputs/task_1/part-*.csv
+
+# Task 2 (show latest epoch)
+ls -1 outputs/task_2
+latest=$(ls -1 outputs/task_2 | sort -V | tail -n1)
+ls -1 "outputs/task_2/$latest"
+head -n 5 "outputs/task_2/$latest"/*.csv
+
+# Task 3
+ls -1 outputs/task_3 | head
+head -n 5 outputs/task_3/part-*.csv
+```
+
+## Details & Semantics
+
+Input format: Each line from the generator is valid JSON (double quotes) ending with a newline \n.
+
+Timestamp format: YYYY-MM-DD HH:mm:ss (parsed with to_timestamp(..., "yyyy-MM-dd HH:mm:ss") in Task 3).
+
+Task 2:
+
+Output mode complete to show running totals per driver in console and write per-epoch CSVs via foreachBatch.
+
+Task 3:
+
+Window: 5 minutes, Slide: 1 minute, Watermark: 1 minute.
+
+File sink is in append mode → writes a row only when a window is finalized (i.e., when watermark > window_end).
+
+Expect a delay (~6 minutes from first events) before the first non-header CSV rows appear.
+
+
+
+## Submission Checklist
+
+✅ data_generator.py, task1.py, task2.py, task3.py included.
+
+✅ Task 1 CSVs under outputs/task_1/.
+
+✅ Task 2 epoch CSV(s) under outputs/task_2/.
+
+✅ Task 3 CSVs under outputs/task_3/ (optionally consolidated windowed_fares.csv).
+
+✅ README updated (this file).
+
+✅ .gitignore excludes checkpoints and CRC markers.
 
 ---
 
