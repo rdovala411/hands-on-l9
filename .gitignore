@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+
+# Spark streaming artifacts
+outputs/*/_chk/
+**/.crc
+
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
