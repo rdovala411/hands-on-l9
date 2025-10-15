@@ -34,18 +34,15 @@ This project demonstrates a simple end-to-end streaming pipeline with **PySpark*
 Ensure your project directory follows the structure below:
 
 ```
-ride-sharing-analytics/
+├── data_generator.py # streams valid JSON over TCP
+├── task1.py # parse stream → console + CSV (append)
+├── task2.py # per-driver aggregates → console + per-epoch CSV
+├── task3.py # 5m window / 1m slide / 1m watermark → console + CSV
 ├── outputs/
-│   ├── task_1
-│   |    └── CSV files of task 1.
-|   ├── task_2
-│   |    └── CSV files of task 2.
-|   └── task_3
-│       └── CSV files of task 3.
-├── task1.py
-├── task2.py
-├── task3.py
-├── data_generator.py
+│ ├── task_1/
+│ ├── task_2/
+│ └── task_3/
+├── .gitignore
 └── README.md
 ```
 
