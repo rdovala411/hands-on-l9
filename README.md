@@ -186,5 +186,5 @@ Expect a delay (~6 minutes from first events) before the first non-header CSV ro
 ✅ .gitignore excludes checkpoints and CRC markers.
 
 ---
-Name: Ruthwik Dovala
-801431661
+- Name: Ruthwik Dovala
+- 801431661
